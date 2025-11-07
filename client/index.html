@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Drawing Canvas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Collaborative Drawing Canvas</h1>
+            <div class="room-controls">
+                <input type="text" id="room-input" placeholder="Enter room name" value="default">
+                <button id="join-room-btn">Join Room</button>
+                <button id="create-room-btn">Create New Room</button>
+            </div>
+            <div class="online-users">
+                <h3>Online Users:</h3>
+                <ul id="users-list"></ul>
+            </div>
+        </header>
+        
+        <div class="toolbar">
+            <div class="tool-group">
+                <button id="brush-tool" class="tool active" title="Brush">✏️</button>
+                <button id="eraser-tool" class="tool" title="Eraser">🧽</button>
+                <button id="rectangle-tool" class="tool" title="Rectangle">⬜</button>
+                <button id="circle-tool" class="tool" title="Circle">⭕</button>
+                <button id="line-tool" class="tool" title="Line">📏</button>
+            </div>
+            
+            <div class="tool-group">
+                <input type="color" id="color-picker" value="#000000">
+                <input type="range" id="stroke-width" min="1" max="50" value="5">
+                <span id="stroke-width-value">5</span>
+            </div>
+            
+            <div class="tool-group">
+                <button id="undo-btn">↩️ Undo</button>
+                <button id="redo-btn">↪️ Redo</button>
+                <button id="clear-btn">🗑️ Clear</button>
+            </div>
+            
+            <div class="tool-group">
+                <button id="save-btn">💾 Save</button>
+                <button id="load-btn">📁 Load</button>
+                <input type="file" id="file-input" accept=".json" style="display: none;">
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="drawing-canvas"></canvas>
+            <div id="cursors-container"></div>
+        </div>
+        
+        <div class="status-bar">
+            <span id="status">Connecting...</span>
+            <span id="performance-metrics"></span>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
