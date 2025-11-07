@@ -9,7 +9,14 @@ const { DrawingState } = require('./server/drawing-state.js');
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+
+// Configure Socket.IO with proper settings for Vercel
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 // Serve static files from the client directory
 app.use(express.static(path.join(__dirname, 'client')));
@@ -17,6 +24,11 @@ app.use(express.static(path.join(__dirname, 'client')));
 // Serve index.html for the root route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/index.html'));
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Initialize room manager and drawing state
@@ -162,6 +174,17 @@ io.on('connection', (socket) => {
             }
         });
     });
+    
+    // Handle connection errors
+    socket.on('error', (error) => {
+        console.error('Socket error:', error);
+    });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Internal server error' });
 });
 
 // Export for Vercel
@@ -169,3 +192,11 @@ module.exports = (req, res) => {
     // Handle the request
     return app(req, res);
 };
+
+// Start server locally if not in Vercel environment
+if (!process.env.NOW_REGION) {
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}

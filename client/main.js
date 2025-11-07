@@ -33,6 +33,7 @@ let currentRoom = 'default';
 let fpsCounter = 0;
 let lastFpsUpdate = Date.now();
 let latencyTests = [];
+let cursorPosition = { x: 0, y: 0 };
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
@@ -40,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize canvas manager
         canvasManager = new CanvasManager('drawing-canvas');
         
-        // Initialize WebSocket client
+        // Initialize WebSocket client with no parameters (will use default based on environment)
         wsClient = new WebSocketClient();
         
         // Connect to server
@@ -173,6 +174,14 @@ function setupEventListeners() {
     fileInput.addEventListener('change', (e) => {
         loadDrawing(e.target.files[0]);
     });
+    
+    // Mouse move event for cursor tracking
+    canvasManager.canvas.addEventListener('mousemove', (e) => {
+        const rect = canvasManager.canvas.getBoundingClientRect();
+        cursorPosition.x = e.clientX - rect.left;
+        cursorPosition.y = e.clientY - rect.top;
+        sendCursorPosition();
+    });
 }
 
 // Setup WebSocket event handlers
@@ -198,8 +207,6 @@ function setupWebSocketHandlers() {
     // Receive drawing data from other users
     wsClient.on('draw-path', (pathData) => {
         canvasManager.drawRemotePath(pathData);
-        // Send cursor position update
-        sendCursorPosition();
     });
     
     // Receive undo action from other users
@@ -267,6 +274,18 @@ function setupWebSocketHandlers() {
             latencyTests.shift();
         }
     });
+    
+    // Connection error handling
+    wsClient.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        statusElement.textContent = 'Connection error. Please check your network and refresh the page.';
+    });
+    
+    // Disconnection handling
+    wsClient.on('disconnect', (reason) => {
+        console.log('WebSocket disconnected:', reason);
+        statusElement.textContent = 'Disconnected. Attempting to reconnect...';
+    });
 }
 
 // Set active tool in UI
@@ -331,16 +350,10 @@ function updateRemoteCursor(data) {
 
 // Send cursor position to other users
 function sendCursorPosition() {
-    if (!canvasManager.isDrawing) return;
-    
-    const rect = canvasManager.canvas.getBoundingClientRect();
-    // In a real implementation, we would send actual cursor position
-    // For now, we'll send the last point of the current path
-    if (canvasManager.currentPath.length > 0) {
-        const lastPoint = canvasManager.currentPath[canvasManager.currentPath.length - 1];
+    if (wsClient && wsClient.socket && wsClient.socket.connected) {
         wsClient.emit('cursor-move', {
-            x: lastPoint.x,
-            y: lastPoint.y,
+            x: cursorPosition.x,
+            y: cursorPosition.y,
             color: currentUser.color,
             userId: currentUser.id
         });
@@ -406,7 +419,7 @@ function startPerformanceMonitoring() {
     
     // Periodically test latency
     setInterval(() => {
-        if (wsClient && wsClient.socket.connected) {
+        if (wsClient && wsClient.socket && wsClient.socket.connected) {
             wsClient.emit('latency-test', { timestamp: Date.now() });
         }
     }, 5000);

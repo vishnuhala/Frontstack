@@ -1,6 +1,12 @@
 // WebSocket client for collaborative canvas
 export class WebSocketClient {
     constructor(url) {
+        // For Vercel deployment, we need to use the same origin for WebSocket connections
+        if (!url) {
+            // Use the current origin for WebSocket connection
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            url = `${protocol}//${window.location.host}`;
+        }
         this.socket = io(url);
         this.listeners = {};
     }

@@ -132,7 +132,16 @@ export class CanvasManager {
     drawPoint(x, y) {
         this.ctx.beginPath();
         this.ctx.arc(x, y, this.currentStrokeWidth / 2, 0, Math.PI * 2);
-        this.ctx.fillStyle = this.currentTool === 'eraser' ? '#FFFFFF' : this.currentColor;
+        
+        if (this.currentTool === 'eraser') {
+            // For eraser, use destination-out composite operation
+            this.ctx.globalCompositeOperation = 'destination-out';
+            this.ctx.fillStyle = 'rgba(0,0,0,1)';
+        } else {
+            this.ctx.globalCompositeOperation = 'source-over';
+            this.ctx.fillStyle = this.currentColor;
+        }
+        
         this.ctx.fill();
     }
     
@@ -157,7 +166,16 @@ export class CanvasManager {
             this.ctx.beginPath();
             this.ctx.moveTo(this.currentPath[this.currentPath.length - 2].x, this.currentPath[this.currentPath.length - 2].y);
             this.ctx.lineTo(x, y);
-            this.ctx.strokeStyle = this.currentTool === 'eraser' ? '#FFFFFF' : this.currentColor;
+            
+            if (this.currentTool === 'eraser') {
+                // For eraser, use destination-out composite operation
+                this.ctx.globalCompositeOperation = 'destination-out';
+                this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+            } else {
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.strokeStyle = this.currentColor;
+            }
+            
             this.ctx.lineWidth = this.currentStrokeWidth;
             this.ctx.stroke();
         } else if (this.currentTool === 'rectangle' || this.currentTool === 'circle' || this.currentTool === 'line') {
@@ -167,6 +185,7 @@ export class CanvasManager {
             this.ctx.beginPath();
             this.ctx.strokeStyle = this.currentColor;
             this.ctx.lineWidth = this.currentStrokeWidth;
+            this.ctx.globalCompositeOperation = 'source-over';
             
             if (this.currentTool === 'rectangle') {
                 const width = x - this.startX;
@@ -193,6 +212,9 @@ export class CanvasManager {
         if (!this.isDrawing) return;
         
         this.isDrawing = false;
+        
+        // Reset composite operation to default
+        this.ctx.globalCompositeOperation = 'source-over';
         
         if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
             // Save the path if it has more than one point
@@ -252,7 +274,6 @@ export class CanvasManager {
     // Draw a specific path
     drawPath(pathData) {
         this.ctx.beginPath();
-        this.ctx.strokeStyle = pathData.color || this.currentColor;
         this.ctx.lineWidth = pathData.strokeWidth || this.currentStrokeWidth;
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
@@ -266,7 +287,15 @@ export class CanvasManager {
                 const point = pathData.points[0];
                 this.ctx.beginPath();
                 this.ctx.arc(point.x, point.y, point.strokeWidth / 2, 0, Math.PI * 2);
-                this.ctx.fillStyle = point.color;
+                
+                if (point.tool === 'eraser') {
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    this.ctx.fillStyle = 'rgba(0,0,0,1)';
+                } else {
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.fillStyle = point.color;
+                }
+                
                 this.ctx.fill();
             } else {
                 // Draw a path
@@ -277,7 +306,14 @@ export class CanvasManager {
                     this.ctx.lineTo(pathData.points[i].x, pathData.points[i].y);
                 }
                 
-                this.ctx.strokeStyle = pathData.points[0].color;
+                if (pathData.points[0].tool === 'eraser') {
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+                } else {
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.strokeStyle = pathData.points[0].color;
+                }
+                
                 this.ctx.lineWidth = pathData.points[0].strokeWidth;
                 this.ctx.stroke();
             }
@@ -286,6 +322,7 @@ export class CanvasManager {
             this.ctx.beginPath();
             this.ctx.strokeStyle = pathData.color;
             this.ctx.lineWidth = pathData.strokeWidth;
+            this.ctx.globalCompositeOperation = 'source-over';
             
             if (pathData.tool === 'rectangle') {
                 const width = pathData.endX - pathData.startX;
@@ -301,6 +338,9 @@ export class CanvasManager {
                 this.ctx.stroke();
             }
         }
+        
+        // Reset composite operation to default
+        this.ctx.globalCompositeOperation = 'source-over';
     }
     
     // Draw path from another user (real-time)
