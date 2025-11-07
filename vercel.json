@@ -16,7 +16,7 @@
     {
       "src": "/socket.io/(.*)",
       "dest": "/index.js",
-      "methods": ["GET", "POST"],
+      "methods": ["GET", "POST", "OPTIONS"],
       "headers": {
         "Connection": "Upgrade",
         "Upgrade": "websocket"

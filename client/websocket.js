@@ -1,18 +1,45 @@
 // WebSocket client for collaborative canvas
 export class WebSocketClient {
     constructor(url) {
-        // For Vercel deployment, let Socket.IO handle the connection automatically
-        // without specifying a URL, it will connect to the same origin
-        this.socket = io({
-            transports: ['websocket', 'polling'], // Try WebSocket first, then polling
-            upgrade: true,
-            rejectUnauthorized: false, // Allow self-signed certificates
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            randomizationFactor: 0.5
-        });
+        // For Vercel deployment, we need to construct the WebSocket URL properly
+        let socketUrl;
+        let socketOptions;
+        
+        if (!url) {
+            // On Vercel, we need to use wss:// for secure connections
+            // and ws:// for non-secure connections
+            const isSecure = window.location.protocol === 'https:';
+            const protocol = isSecure ? 'wss://' : 'ws://';
+            const host = window.location.host;
+            socketUrl = `${protocol}${host}`;
+            
+            socketOptions = {
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rejectUnauthorized: false,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                randomizationFactor: 0.5,
+                path: '/socket.io'
+            };
+        } else {
+            socketUrl = url;
+            socketOptions = {
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rejectUnauthorized: false,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                randomizationFactor: 0.5
+            };
+        }
+        
+        console.log('Connecting to WebSocket server at:', socketUrl);
+        this.socket = io(socketUrl, socketOptions);
         this.listeners = {};
     }
 

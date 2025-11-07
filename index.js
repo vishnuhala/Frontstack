@@ -24,7 +24,8 @@ const io = socketIo(server, {
   allowEIO3: true, // Allow Engine.IO v3 clients
   transports: ["websocket", "polling"], // Try WebSocket first, then polling
   upgrade: true,
-  cookie: false // Disable cookie for Vercel compatibility
+  cookie: false, // Disable cookie for Vercel compatibility
+  path: "/socket.io" // Explicitly set the path
 });
 
 // Serve static files from the client directory
