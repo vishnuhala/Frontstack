@@ -2,10 +2,10 @@
   "name": "collaborative-canvas",
   "version": "1.0.0",
   "description": "A real-time collaborative drawing canvas application",
-  "main": "server/server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "nodemon server/server.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "build": "echo 'No build step required'"
   },
   "dependencies": {
@@ -22,5 +22,8 @@
     "drawing"
   ],
   "author": "Developer",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
 }

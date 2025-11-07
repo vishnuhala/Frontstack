@@ -3,8 +3,6 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
-const { RoomManager } = require('./server/rooms.js');
-const { DrawingState } = require('./server/drawing-state.js');
 
 // Initialize Express app
 const app = express();
@@ -46,6 +44,10 @@ app.get('/health', (req, res) => {
         uptime: process.uptime()
     });
 });
+
+// Import room manager and drawing state from server files
+const { RoomManager } = require('./server/rooms.js');
+const { DrawingState } = require('./server/drawing-state.js');
 
 // Initialize room manager and drawing state
 const roomManager = new RoomManager();

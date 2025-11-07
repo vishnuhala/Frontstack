@@ -23,15 +23,8 @@
       }
     },
     {
-      "src": "/health",
-      "dest": "/index.js"
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
