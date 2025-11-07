@@ -23,11 +23,15 @@
       }
     },
     {
+      "src": "/health",
+      "dest": "/index.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.js"
     }
   ],
   "env": {
-    "PORT": "3000"
+    "NODE_ENV": "production"
   }
 }

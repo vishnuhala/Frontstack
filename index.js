@@ -14,8 +14,11 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  allowEIO3: true, // Allow Engine.IO v3 clients
+  transports: ["websocket", "polling"] // Try WebSocket first, then polling
 });
 
 // Serve static files from the client directory
