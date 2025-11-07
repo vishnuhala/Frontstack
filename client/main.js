@@ -34,40 +34,71 @@ let fpsCounter = 0;
 let lastFpsUpdate = Date.now();
 let latencyTests = [];
 let cursorPosition = { x: 0, y: 0 };
+let connectionAttempts = 0;
+let maxConnectionAttempts = 5;
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        console.log('Initializing application...');
         // Initialize canvas manager
         canvasManager = new CanvasManager('drawing-canvas');
         
         // Initialize WebSocket client with no parameters (will use default based on environment)
+        console.log('Creating WebSocket client...');
         wsClient = new WebSocketClient();
         
         // Connect to server
         statusElement.textContent = 'Connecting to server...';
-        const userId = await wsClient.connect();
+        console.log('Attempting to connect to server...');
+        const userId = await connectWithRetry();
+        console.log('Connected with user ID:', userId);
         canvasManager.setUserId(userId);
         currentUser = { id: userId, color: getRandomColor() };
         
         // Join default room
+        console.log('Joining default room...');
         wsClient.joinRoom(currentRoom);
         
         // Setup event listeners
+        console.log('Setting up event listeners...');
         setupEventListeners();
         
         // Setup WebSocket event handlers
+        console.log('Setting up WebSocket event handlers...');
         setupWebSocketHandlers();
         
         // Start performance monitoring
+        console.log('Starting performance monitoring...');
         startPerformanceMonitoring();
         
         statusElement.textContent = 'Connected! Draw something...';
+        console.log('Application initialized successfully');
     } catch (error) {
         console.error('Failed to initialize application:', error);
-        statusElement.textContent = 'Connection failed. Please refresh the page.';
+        statusElement.textContent = `Connection failed: ${error.message}. Please refresh the page.`;
     }
 });
+
+// Connect with retry logic
+async function connectWithRetry() {
+    while (connectionAttempts < maxConnectionAttempts) {
+        try {
+            connectionAttempts++;
+            statusElement.textContent = `Connecting to server... (Attempt ${connectionAttempts}/${maxConnectionAttempts})`;
+            console.log(`Connection attempt ${connectionAttempts}`);
+            return await wsClient.connect();
+        } catch (error) {
+            console.error(`Connection attempt ${connectionAttempts} failed:`, error);
+            if (connectionAttempts >= maxConnectionAttempts) {
+                throw error;
+            }
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000 * connectionAttempts));
+        }
+    }
+    throw new Error('Failed to connect after maximum attempts');
+}
 
 // Setup event listeners for UI elements
 function setupEventListeners() {
@@ -186,8 +217,15 @@ function setupEventListeners() {
 
 // Setup WebSocket event handlers
 function setupWebSocketHandlers() {
+    // Connection confirmed
+    wsClient.on('connection-confirmed', (data) => {
+        console.log('Connection confirmed:', data);
+        statusElement.textContent = 'Connected to server! Draw something...';
+    });
+    
     // User joined
     wsClient.on('user-joined', (data) => {
+        console.log('User joined:', data);
         onlineUsers[data.userId] = {
             id: data.userId,
             color: data.color,
@@ -199,6 +237,7 @@ function setupWebSocketHandlers() {
     
     // User left
     wsClient.on('user-left', (data) => {
+        console.log('User left:', data);
         delete onlineUsers[data.userId];
         updateUserList();
         statusElement.textContent = 'A user left the session';
@@ -206,11 +245,13 @@ function setupWebSocketHandlers() {
     
     // Receive drawing data from other users
     wsClient.on('draw-path', (pathData) => {
+        console.log('Received draw-path:', pathData);
         canvasManager.drawRemotePath(pathData);
     });
     
     // Receive undo action from other users
     wsClient.on('path-undone', (data) => {
+        console.log('Received path-undone:', data);
         // Find and remove the path
         const index = canvasManager.paths.findIndex(p => p.id === data.pathId);
         if (index !== -1) {
@@ -231,6 +272,7 @@ function setupWebSocketHandlers() {
     
     // Receive redo action from other users
     wsClient.on('path-redone', (pathData) => {
+        console.log('Received path-redone:', pathData);
         canvasManager.drawRemotePath(pathData);
         // Move path from redo to undo stack
         const redoIndex = canvasManager.redoStack.findIndex(p => p.id === pathData.id);
@@ -243,12 +285,14 @@ function setupWebSocketHandlers() {
     
     // Receive clear canvas command
     wsClient.on('canvas-cleared', () => {
+        console.log('Received canvas-cleared');
         canvasManager.clear();
         statusElement.textContent = 'Canvas cleared by another user';
     });
     
     // Receive initial canvas state
     wsClient.on('initial-state', (data) => {
+        console.log('Received initial-state:', data);
         if (data.paths) {
             canvasManager.setPaths(data.paths);
         }
@@ -260,11 +304,13 @@ function setupWebSocketHandlers() {
     
     // Receive cursor position updates
     wsClient.on('cursor-move', (data) => {
+        console.log('Received cursor-move:', data);
         updateRemoteCursor(data);
     });
     
     // Latency test response
     wsClient.on('latency-response', (data) => {
+        console.log('Received latency-response:', data);
         const now = Date.now();
         const latency = now - data.timestamp;
         latencyTests.push(latency);
@@ -278,13 +324,13 @@ function setupWebSocketHandlers() {
     // Connection error handling
     wsClient.on('connect_error', (error) => {
         console.error('WebSocket connection error:', error);
-        statusElement.textContent = 'Connection error. Please check your network and refresh the page.';
+        statusElement.textContent = `Connection error: ${error.message}. Retrying...`;
     });
     
     // Disconnection handling
     wsClient.on('disconnect', (reason) => {
         console.log('WebSocket disconnected:', reason);
-        statusElement.textContent = 'Disconnected. Attempting to reconnect...';
+        statusElement.textContent = `Disconnected: ${reason}. Attempting to reconnect...`;
     });
 }
 

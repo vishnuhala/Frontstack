@@ -1,13 +1,18 @@
 // WebSocket client for collaborative canvas
 export class WebSocketClient {
     constructor(url) {
-        // For Vercel deployment, we need to use the same origin for WebSocket connections
-        if (!url) {
-            // Use the current origin for WebSocket connection
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            url = `${protocol}//${window.location.host}`;
-        }
-        this.socket = io(url);
+        // For Vercel deployment, let Socket.IO handle the connection automatically
+        // without specifying a URL, it will connect to the same origin
+        this.socket = io({
+            transports: ['websocket', 'polling'], // Try WebSocket first, then polling
+            upgrade: true,
+            rejectUnauthorized: false, // Allow self-signed certificates
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            randomizationFactor: 0.5
+        });
         this.listeners = {};
     }
 
@@ -21,7 +26,11 @@ export class WebSocketClient {
 
             this.socket.on('connect_error', (error) => {
                 console.error('Connection error:', error);
-                reject(error);
+                reject(new Error(`Failed to connect to server: ${error.message}`));
+            });
+            
+            this.socket.on('disconnect', (reason) => {
+                console.log('Disconnected from server:', reason);
             });
         });
     }
@@ -34,7 +43,11 @@ export class WebSocketClient {
 
     // Emit an event to the server
     emit(event, data) {
-        this.socket.emit(event, data);
+        if (this.socket.connected) {
+            this.socket.emit(event, data);
+        } else {
+            console.warn(`Cannot emit event ${event}: Not connected to server`);
+        }
     }
 
     // Disconnect from the server

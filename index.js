@@ -10,6 +10,12 @@ const { DrawingState } = require('./server/drawing-state.js');
 const app = express();
 const server = http.createServer(app);
 
+// Add logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
 // Configure Socket.IO with proper settings for Vercel
 const io = socketIo(server, {
   cors: {
@@ -18,7 +24,9 @@ const io = socketIo(server, {
     credentials: true
   },
   allowEIO3: true, // Allow Engine.IO v3 clients
-  transports: ["websocket", "polling"] // Try WebSocket first, then polling
+  transports: ["websocket", "polling"], // Try WebSocket first, then polling
+  upgrade: true,
+  cookie: false // Disable cookie for Vercel compatibility
 });
 
 // Serve static files from the client directory
@@ -26,12 +34,17 @@ app.use(express.static(path.join(__dirname, 'client')));
 
 // Serve index.html for the root route
 app.get('/', (req, res) => {
+    console.log('Serving index.html');
     res.sendFile(path.join(__dirname, 'client/index.html'));
 });
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
 });
 
 // Initialize room manager and drawing state
@@ -42,8 +55,15 @@ const drawingState = new DrawingState();
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
     
+    // Send connection confirmation
+    socket.emit('connection-confirmed', { 
+        userId: socket.id, 
+        timestamp: new Date().toISOString() 
+    });
+    
     // Handle user joining a room
     socket.on('join-room', (roomId) => {
+        console.log(`User ${socket.id} attempting to join room:`, roomId);
         // Validate room ID
         if (!roomId || typeof roomId !== 'string') {
             roomId = 'default';
@@ -76,11 +96,12 @@ io.on('connection', (socket) => {
             name: user.name
         });
         
-        console.log(`User ${socket.id} joined room ${roomId}`);
+        console.log(`User ${socket.id} successfully joined room ${roomId}`);
     });
     
     // Handle user leaving a room
     socket.on('leave-room', (roomId) => {
+        console.log(`User ${socket.id} attempting to leave room:`, roomId);
         // Validate room ID
         if (!roomId || typeof roomId !== 'string') {
             // Leave all rooms if no specific room is provided
@@ -98,7 +119,7 @@ io.on('connection', (socket) => {
         socket.leave(roomId);
         roomManager.removeUserFromRoom(socket.id, roomId);
         socket.to(roomId).emit('user-left', { userId: socket.id });
-        console.log(`User ${socket.id} left room ${roomId}`);
+        console.log(`User ${socket.id} successfully left room ${roomId}`);
     });
     
     // Handle drawing path
@@ -180,7 +201,7 @@ io.on('connection', (socket) => {
     
     // Handle connection errors
     socket.on('error', (error) => {
-        console.error('Socket error:', error);
+        console.error('Socket error for user', socket.id, ':', error);
     });
 });
 
