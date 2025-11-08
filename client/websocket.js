@@ -23,7 +23,9 @@ export class WebSocketClient {
                 timeout: 10000,
                 // Add Vercel-specific options
                 forceNew: true,
-                secure: true
+                secure: true,
+                // Remove port specification to let Socket.IO auto-detect
+                autoConnect: true
             };
         } else {
             socketUrl = url;
@@ -37,7 +39,8 @@ export class WebSocketClient {
                 reconnectionDelayMax: 5000,
                 randomizationFactor: 0.5,
                 timeout: 10000,
-                forceNew: true
+                forceNew: true,
+                autoConnect: true
             };
         }
         

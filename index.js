@@ -14,6 +14,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Get the port from environment or default to 3000
+const PORT = process.env.PORT || 3000;
+
 // Configure Socket.IO with proper settings for Vercel
 const io = socketIo(server, {
   cors: {
@@ -43,7 +46,8 @@ app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        port: PORT
     });
 });
 
@@ -57,12 +61,13 @@ const drawingState = new DrawingState();
 
 // Handle WebSocket connections
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('User connected:', socket.id, 'on port:', PORT);
     
     // Send connection confirmation
     socket.emit('connection-confirmed', { 
         userId: socket.id, 
-        timestamp: new Date().toISOString() 
+        timestamp: new Date().toISOString(),
+        port: PORT
     });
     
     // Handle user joining a room
@@ -223,7 +228,6 @@ module.exports = (req, res) => {
 
 // Start server locally if not in Vercel environment
 if (!process.env.NOW_REGION) {
-    const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });
