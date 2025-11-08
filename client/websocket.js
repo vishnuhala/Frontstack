@@ -30,11 +30,11 @@ export class WebSocketClient {
                 timeout: 10000,
                 // Add Vercel-specific options
                 forceNew: true,
-                secure: true,
                 autoConnect: true,
                 // Add additional options for better Vercel compatibility
                 rememberUpgrade: true,
                 upgradeTimeout: 10000
+                // REMOVED secure: true as it can interfere with Vercel connections
             };
         } else {
             console.log('[WebSocketClient] Using provided URL:', url);
@@ -53,6 +53,7 @@ export class WebSocketClient {
                 autoConnect: true,
                 rememberUpgrade: true,
                 upgradeTimeout: 10000
+                // REMOVED secure: true as it can interfere with Vercel connections
             };
         }
         

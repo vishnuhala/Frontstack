@@ -277,6 +277,9 @@ module.exports = (req, res) => {
     return app(req, res);
 };
 
+// ALSO EXPORT THE SERVER for Vercel to use
+module.exports.server = server;
+
 // Start server locally if not in Vercel environment
 if (!process.env.NOW_REGION) {
     console.log('[Server] Starting server locally on port', PORT);
@@ -285,4 +288,6 @@ if (!process.env.NOW_REGION) {
     });
 } else {
     console.log('[Server] Running in Vercel environment');
+    // In Vercel environment, the server will be started by Vercel
+    // We just need to make sure it's exported properly
 }
