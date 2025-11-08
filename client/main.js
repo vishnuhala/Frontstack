@@ -1,8 +1,20 @@
 // Main application entry point
+console.log('[Main] Script loading started');
+
+// Add a check for require function
+if (typeof require !== 'undefined') {
+    console.log('[Main] Require function is defined - this should not happen in browser');
+} else {
+    console.log('[Main] Require function is not defined - this is expected in browser');
+}
+
 import { CanvasManager } from './canvas.js';
 import { WebSocketClient } from './websocket.js';
 
+console.log('[Main] Application starting');
+
 // DOM Elements
+console.log('[Main] Getting DOM elements');
 const brushToolBtn = document.getElementById('brush-tool');
 const eraserToolBtn = document.getElementById('eraser-tool');
 const rectangleToolBtn = document.getElementById('rectangle-tool');
@@ -24,6 +36,8 @@ const saveBtn = document.getElementById('save-btn');
 const loadBtn = document.getElementById('load-btn');
 const fileInput = document.getElementById('file-input');
 
+console.log('[Main] DOM elements retrieved');
+
 // Initialize application
 let canvasManager;
 let wsClient;
@@ -39,34 +53,45 @@ let maxConnectionAttempts = 5;
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[Main] DOM loaded, initializing application');
     try {
+        console.log('[Main] Initializing application...');
         // Initialize canvas manager
+        console.log('[Main] Creating CanvasManager');
         canvasManager = new CanvasManager('drawing-canvas');
         
-        // Initialize WebSocket client
+        // Initialize WebSocket client with no parameters (will use default based on environment)
+        console.log('[Main] Creating WebSocket client');
         wsClient = new WebSocketClient();
         
         // Connect to server
         statusElement.textContent = 'Connecting to server...';
+        console.log('[Main] Attempting to connect to server');
         const userId = await connectWithRetry();
+        console.log('[Main] Connected with user ID:', userId);
         canvasManager.setUserId(userId);
         currentUser = { id: userId, color: getRandomColor() };
         
         // Join default room
+        console.log('[Main] Joining default room');
         wsClient.joinRoom(currentRoom);
         
         // Setup event listeners
+        console.log('[Main] Setting up event listeners');
         setupEventListeners();
         
         // Setup WebSocket event handlers
+        console.log('[Main] Setting up WebSocket event handlers');
         setupWebSocketHandlers();
         
         // Start performance monitoring
+        console.log('[Main] Starting performance monitoring');
         startPerformanceMonitoring();
         
         statusElement.textContent = 'Connected! Draw something...';
+        console.log('[Main] Application initialized successfully');
     } catch (error) {
-        console.error('Failed to initialize application:', error);
+        console.error('[Main] Failed to initialize application:', error);
         statusElement.textContent = `Connection failed: ${error.message}. Please refresh the page.`;
     }
 });
@@ -77,9 +102,10 @@ async function connectWithRetry() {
         try {
             connectionAttempts++;
             statusElement.textContent = `Connecting to server... (Attempt ${connectionAttempts}/${maxConnectionAttempts})`;
+            console.log(`[Main] Connection attempt ${connectionAttempts}`);
             return await wsClient.connect();
         } catch (error) {
-            console.error(`Connection attempt ${connectionAttempts} failed:`, error);
+            console.error(`[Main] Connection attempt ${connectionAttempts} failed:`, error);
             if (connectionAttempts >= maxConnectionAttempts) {
                 throw error;
             }
@@ -92,28 +118,35 @@ async function connectWithRetry() {
 
 // Setup event listeners for UI elements
 function setupEventListeners() {
+    console.log('[Main] Setting up UI event listeners');
+    
     // Tool selection
     brushToolBtn.addEventListener('click', () => {
+        console.log('[Main] Brush tool selected');
         setActiveTool('brush');
         canvasManager.setTool('brush');
     });
     
     eraserToolBtn.addEventListener('click', () => {
+        console.log('[Main] Eraser tool selected');
         setActiveTool('eraser');
         canvasManager.setTool('eraser');
     });
     
     rectangleToolBtn.addEventListener('click', () => {
+        console.log('[Main] Rectangle tool selected');
         setActiveTool('rectangle');
         canvasManager.setTool('rectangle');
     });
     
     circleToolBtn.addEventListener('click', () => {
+        console.log('[Main] Circle tool selected');
         setActiveTool('circle');
         canvasManager.setTool('circle');
     });
     
     lineToolBtn.addEventListener('click', () => {
+        console.log('[Main] Line tool selected');
         setActiveTool('line');
         canvasManager.setTool('line');
     });
