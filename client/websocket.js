@@ -6,23 +6,21 @@ export class WebSocketClient {
         let socketOptions;
         
         if (!url) {
-            // On Vercel, we need to use wss:// for secure connections
-            // and ws:// for non-secure connections
-            const isSecure = window.location.protocol === 'https:';
-            const protocol = isSecure ? 'wss://' : 'ws://';
-            const host = window.location.host;
-            socketUrl = `${protocol}${host}`;
+            // On Vercel, we need to use the same origin for WebSocket connections
+            // but we don't specify the protocol as Socket.IO will handle that
+            socketUrl = "";
             
             socketOptions = {
                 transports: ['websocket', 'polling'],
                 upgrade: true,
                 rejectUnauthorized: false,
                 reconnection: true,
-                reconnectionAttempts: 5,
+                reconnectionAttempts: 10,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
                 randomizationFactor: 0.5,
-                path: '/socket.io'
+                path: '/socket.io',
+                timeout: 10000
             };
         } else {
             socketUrl = url;
@@ -31,27 +29,47 @@ export class WebSocketClient {
                 upgrade: true,
                 rejectUnauthorized: false,
                 reconnection: true,
-                reconnectionAttempts: 5,
+                reconnectionAttempts: 10,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
-                randomizationFactor: 0.5
+                randomizationFactor: 0.5,
+                timeout: 10000
             };
         }
         
-        console.log('Connecting to WebSocket server at:', socketUrl);
+        console.log('Connecting to WebSocket server at:', socketUrl || 'same origin');
         this.socket = io(socketUrl, socketOptions);
         this.listeners = {};
+        
+        // Add connection state logging
+        this.socket.on('connect', () => {
+            console.log('WebSocket connected with ID:', this.socket.id);
+        });
+        
+        this.socket.on('disconnect', (reason) => {
+            console.log('WebSocket disconnected. Reason:', reason);
+        });
+        
+        this.socket.on('connect_error', (error) => {
+            console.error('WebSocket connection error:', error);
+        });
     }
 
     // Connect to the WebSocket server
     connect() {
         return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Connection timeout'));
+            }, 15000); // 15 second timeout
+            
             this.socket.on('connect', () => {
+                clearTimeout(timeout);
                 console.log('Connected to server with ID:', this.socket.id);
                 resolve(this.socket.id);
             });
 
             this.socket.on('connect_error', (error) => {
+                clearTimeout(timeout);
                 console.error('Connection error:', error);
                 reject(new Error(`Failed to connect to server: ${error.message}`));
             });
@@ -59,6 +77,12 @@ export class WebSocketClient {
             this.socket.on('disconnect', (reason) => {
                 console.log('Disconnected from server:', reason);
             });
+            
+            // If already connected, resolve immediately
+            if (this.socket.connected) {
+                clearTimeout(timeout);
+                resolve(this.socket.id);
+            }
         });
     }
 
