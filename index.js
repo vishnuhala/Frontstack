@@ -271,13 +271,16 @@ app.use((err, req, res, next) => {
 
 // Export for Vercel
 console.log('[Server] Setting up Vercel export');
-module.exports = (req, res) => {
+
+// Create the handler function for Vercel
+const handler = (req, res) => {
     console.log('[Server] Vercel request received:', req.method, req.url);
     // Handle the request
     return app(req, res);
 };
 
-// ALSO EXPORT THE SERVER for Vercel to use
+// Export both the handler and the server
+module.exports = handler;
 module.exports.server = server;
 
 // Start server locally if not in Vercel environment
