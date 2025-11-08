@@ -2,7 +2,10 @@
 import { CanvasManager } from './canvas.js';
 import { WebSocketClient } from './websocket.js';
 
+console.log('[Main] Application starting');
+
 // DOM Elements
+console.log('[Main] Getting DOM elements');
 const brushToolBtn = document.getElementById('brush-tool');
 const eraserToolBtn = document.getElementById('eraser-tool');
 const rectangleToolBtn = document.getElementById('rectangle-tool');
@@ -24,6 +27,8 @@ const saveBtn = document.getElementById('save-btn');
 const loadBtn = document.getElementById('load-btn');
 const fileInput = document.getElementById('file-input');
 
+console.log('[Main] DOM elements retrieved');
+
 // Initialize application
 let canvasManager;
 let wsClient;
@@ -39,57 +44,62 @@ let maxConnectionAttempts = 5;
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[Main] DOM loaded, initializing application');
     try {
-        console.log('Initializing application...');
+        console.log('[Main] Initializing application...');
         // Initialize canvas manager
+        console.log('[Main] Creating CanvasManager');
         canvasManager = new CanvasManager('drawing-canvas');
+        console.log('[Main] CanvasManager created');
         
         // Initialize WebSocket client with no parameters (will use default based on environment)
-        console.log('Creating WebSocket client...');
+        console.log('[Main] Creating WebSocketClient');
         wsClient = new WebSocketClient();
+        console.log('[Main] WebSocketClient created');
         
         // Connect to server
         statusElement.textContent = 'Connecting to server...';
-        console.log('Attempting to connect to server...');
+        console.log('[Main] Attempting to connect to server...');
         const userId = await connectWithRetry();
-        console.log('Connected with user ID:', userId);
+        console.log('[Main] Connected with user ID:', userId);
         canvasManager.setUserId(userId);
         currentUser = { id: userId, color: getRandomColor() };
         
         // Join default room
-        console.log('Joining default room...');
+        console.log('[Main] Joining default room...');
         wsClient.joinRoom(currentRoom);
         
         // Setup event listeners
-        console.log('Setting up event listeners...');
+        console.log('[Main] Setting up event listeners...');
         setupEventListeners();
         
         // Setup WebSocket event handlers
-        console.log('Setting up WebSocket event handlers...');
+        console.log('[Main] Setting up WebSocket event handlers...');
         setupWebSocketHandlers();
         
         // Start performance monitoring
-        console.log('Starting performance monitoring...');
+        console.log('[Main] Starting performance monitoring...');
         startPerformanceMonitoring();
         
         statusElement.textContent = 'Connected! Draw something...';
-        console.log('Application initialized successfully');
+        console.log('[Main] Application initialized successfully');
     } catch (error) {
-        console.error('Failed to initialize application:', error);
+        console.error('[Main] Failed to initialize application:', error);
         statusElement.textContent = `Connection failed: ${error.message}. Please refresh the page.`;
     }
 });
 
 // Connect with retry logic
 async function connectWithRetry() {
+    console.log('[Main] Starting connection retry logic');
     while (connectionAttempts < maxConnectionAttempts) {
         try {
             connectionAttempts++;
             statusElement.textContent = `Connecting to server... (Attempt ${connectionAttempts}/${maxConnectionAttempts})`;
-            console.log(`Connection attempt ${connectionAttempts}`);
+            console.log(`[Main] Connection attempt ${connectionAttempts}`);
             return await wsClient.connect();
         } catch (error) {
-            console.error(`Connection attempt ${connectionAttempts} failed:`, error);
+            console.error(`[Main] Connection attempt ${connectionAttempts} failed:`, error);
             if (connectionAttempts >= maxConnectionAttempts) {
                 throw error;
             }
@@ -102,46 +112,55 @@ async function connectWithRetry() {
 
 // Setup event listeners for UI elements
 function setupEventListeners() {
+    console.log('[Main] Setting up UI event listeners');
     // Tool selection
     brushToolBtn.addEventListener('click', () => {
+        console.log('[Main] Brush tool selected');
         setActiveTool('brush');
         canvasManager.setTool('brush');
     });
     
     eraserToolBtn.addEventListener('click', () => {
+        console.log('[Main] Eraser tool selected');
         setActiveTool('eraser');
         canvasManager.setTool('eraser');
     });
     
     rectangleToolBtn.addEventListener('click', () => {
+        console.log('[Main] Rectangle tool selected');
         setActiveTool('rectangle');
         canvasManager.setTool('rectangle');
     });
     
     circleToolBtn.addEventListener('click', () => {
+        console.log('[Main] Circle tool selected');
         setActiveTool('circle');
         canvasManager.setTool('circle');
     });
     
     lineToolBtn.addEventListener('click', () => {
+        console.log('[Main] Line tool selected');
         setActiveTool('line');
         canvasManager.setTool('line');
     });
     
     // Color picker
     colorPicker.addEventListener('input', (e) => {
+        console.log('[Main] Color changed to:', e.target.value);
         canvasManager.setColor(e.target.value);
     });
     
     // Stroke width
     strokeWidthSlider.addEventListener('input', (e) => {
         const width = e.target.value;
+        console.log('[Main] Stroke width changed to:', width);
         strokeWidthValue.textContent = width;
         canvasManager.setStrokeWidth(parseInt(width));
     });
     
     // Undo/Redo
     undoBtn.addEventListener('click', () => {
+        console.log('[Main] Undo button clicked');
         const undonePath = canvasManager.undo();
         if (undonePath) {
             wsClient.emit('undo-path', { pathId: undonePath.id });
@@ -150,6 +169,7 @@ function setupEventListeners() {
     });
     
     redoBtn.addEventListener('click', () => {
+        console.log('[Main] Redo button clicked');
         const redonePath = canvasManager.redo();
         if (redonePath) {
             wsClient.emit('redo-path', { pathId: redonePath.id });
@@ -159,12 +179,14 @@ function setupEventListeners() {
     
     // Clear canvas
     clearBtn.addEventListener('click', () => {
+        console.log('[Main] Clear button clicked');
         canvasManager.clear();
         wsClient.emit('clear-canvas');
     });
     
     // Room controls
     joinRoomBtn.addEventListener('click', () => {
+        console.log('[Main] Join room button clicked');
         const roomName = roomInput.value.trim();
         if (roomName) {
             // Leave current room
@@ -179,6 +201,7 @@ function setupEventListeners() {
     });
     
     createRoomBtn.addEventListener('click', () => {
+        console.log('[Main] Create room button clicked');
         const roomName = prompt('Enter new room name:');
         if (roomName && roomName.trim()) {
             // Leave current room
@@ -195,14 +218,17 @@ function setupEventListeners() {
     
     // Save/Load functionality
     saveBtn.addEventListener('click', () => {
+        console.log('[Main] Save button clicked');
         saveDrawing();
     });
     
     loadBtn.addEventListener('click', () => {
+        console.log('[Main] Load button clicked');
         fileInput.click();
     });
     
     fileInput.addEventListener('change', (e) => {
+        console.log('[Main] File selected for loading');
         loadDrawing(e.target.files[0]);
     });
     
@@ -213,19 +239,22 @@ function setupEventListeners() {
         cursorPosition.y = e.clientY - rect.top;
         sendCursorPosition();
     });
+    
+    console.log('[Main] UI event listeners set up');
 }
 
 // Setup WebSocket event handlers
 function setupWebSocketHandlers() {
+    console.log('[Main] Setting up WebSocket event handlers');
     // Connection confirmed
     wsClient.on('connection-confirmed', (data) => {
-        console.log('Connection confirmed:', data);
+        console.log('[Main] Connection confirmed:', data);
         statusElement.textContent = 'Connected to server! Draw something...';
     });
     
     // User joined
     wsClient.on('user-joined', (data) => {
-        console.log('User joined:', data);
+        console.log('[Main] User joined:', data);
         onlineUsers[data.userId] = {
             id: data.userId,
             color: data.color,
@@ -237,7 +266,7 @@ function setupWebSocketHandlers() {
     
     // User left
     wsClient.on('user-left', (data) => {
-        console.log('User left:', data);
+        console.log('[Main] User left:', data);
         delete onlineUsers[data.userId];
         updateUserList();
         statusElement.textContent = 'A user left the session';
@@ -245,13 +274,13 @@ function setupWebSocketHandlers() {
     
     // Receive drawing data from other users
     wsClient.on('draw-path', (pathData) => {
-        console.log('Received draw-path:', pathData);
+        console.log('[Main] Received draw-path:', pathData);
         canvasManager.drawRemotePath(pathData);
     });
     
     // Receive undo action from other users
     wsClient.on('path-undone', (data) => {
-        console.log('Received path-undone:', data);
+        console.log('[Main] Received path-undone:', data);
         // Find and remove the path
         const index = canvasManager.paths.findIndex(p => p.id === data.pathId);
         if (index !== -1) {
@@ -272,7 +301,7 @@ function setupWebSocketHandlers() {
     
     // Receive redo action from other users
     wsClient.on('path-redone', (pathData) => {
-        console.log('Received path-redone:', pathData);
+        console.log('[Main] Received path-redone:', pathData);
         canvasManager.drawRemotePath(pathData);
         // Move path from redo to undo stack
         const redoIndex = canvasManager.redoStack.findIndex(p => p.id === pathData.id);
@@ -285,14 +314,14 @@ function setupWebSocketHandlers() {
     
     // Receive clear canvas command
     wsClient.on('canvas-cleared', () => {
-        console.log('Received canvas-cleared');
+        console.log('[Main] Received canvas-cleared');
         canvasManager.clear();
         statusElement.textContent = 'Canvas cleared by another user';
     });
     
     // Receive initial canvas state
     wsClient.on('initial-state', (data) => {
-        console.log('Received initial-state:', data);
+        console.log('[Main] Received initial-state:', data);
         if (data.paths) {
             canvasManager.setPaths(data.paths);
         }
@@ -304,13 +333,13 @@ function setupWebSocketHandlers() {
     
     // Receive cursor position updates
     wsClient.on('cursor-move', (data) => {
-        console.log('Received cursor-move:', data);
+        console.log('[Main] Received cursor-move:', data);
         updateRemoteCursor(data);
     });
     
     // Latency test response
     wsClient.on('latency-response', (data) => {
-        console.log('Received latency-response:', data);
+        console.log('[Main] Received latency-response:', data);
         const now = Date.now();
         const latency = now - data.timestamp;
         latencyTests.push(latency);
@@ -323,19 +352,22 @@ function setupWebSocketHandlers() {
     
     // Connection error handling
     wsClient.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
+        console.error('[Main] WebSocket connection error:', error);
         statusElement.textContent = `Connection error: ${error.message}. Retrying...`;
     });
     
     // Disconnection handling
     wsClient.on('disconnect', (reason) => {
-        console.log('WebSocket disconnected:', reason);
+        console.log('[Main] WebSocket disconnected:', reason);
         statusElement.textContent = `Disconnected: ${reason}. Attempting to reconnect...`;
     });
+    
+    console.log('[Main] WebSocket event handlers set up');
 }
 
 // Set active tool in UI
 function setActiveTool(tool) {
+    console.log('[Main] Setting active tool:', tool);
     // Remove active class from all tools
     brushToolBtn.classList.remove('active');
     eraserToolBtn.classList.remove('active');
@@ -359,6 +391,7 @@ function setActiveTool(tool) {
 
 // Update user list display
 function updateUserList() {
+    console.log('[Main] Updating user list');
     usersList.innerHTML = '';
     
     Object.values(onlineUsers).forEach(user => {
@@ -372,6 +405,7 @@ function updateUserList() {
 
 // Update remote cursor position
 function updateRemoteCursor(data) {
+    console.log('[Main] Updating remote cursor:', data);
     let cursor = document.getElementById(`cursor-${data.userId}`);
     
     if (!cursor) {
@@ -408,6 +442,7 @@ function sendCursorPosition() {
 
 // Update undo/redo button states
 function updateUndoRedoButtons() {
+    console.log('[Main] Updating undo/redo buttons');
     undoBtn.disabled = canvasManager.undoStack.length === 0;
     redoBtn.disabled = canvasManager.redoStack.length === 0;
 }
@@ -423,6 +458,7 @@ function getRandomColor() {
 
 // Handle drawing completion
 canvasManager.stopDrawing = function() {
+    console.log('[Main] Drawing stopped');
     const originalResult = CanvasManager.prototype.stopDrawing.call(this);
     
     // Send path data to other users
@@ -435,6 +471,7 @@ canvasManager.stopDrawing = function() {
 
 // Start performance monitoring
 function startPerformanceMonitoring() {
+    console.log('[Main] Starting performance monitoring');
     // FPS counter
     setInterval(() => {
         const now = Date.now();
@@ -473,6 +510,7 @@ function startPerformanceMonitoring() {
 
 // Save drawing to file
 function saveDrawing() {
+    console.log('[Main] Saving drawing');
     try {
         const drawingData = {
             paths: canvasManager.paths,
@@ -492,13 +530,14 @@ function saveDrawing() {
         
         statusElement.textContent = 'Drawing saved successfully!';
     } catch (error) {
-        console.error('Error saving drawing:', error);
+        console.error('[Main] Error saving drawing:', error);
         statusElement.textContent = 'Error saving drawing: ' + error.message;
     }
 }
 
 // Load drawing from file
 function loadDrawing(file) {
+    console.log('[Main] Loading drawing');
     if (!file) return;
     
     const reader = new FileReader();
@@ -527,7 +566,7 @@ function loadDrawing(file) {
                 throw new Error('Invalid drawing file format');
             }
         } catch (error) {
-            console.error('Error loading drawing:', error);
+            console.error('[Main] Error loading drawing:', error);
             statusElement.textContent = 'Error loading drawing: ' + error.message;
         }
     };
