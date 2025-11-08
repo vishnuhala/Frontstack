@@ -283,6 +283,9 @@ const handler = (req, res) => {
 module.exports = handler;
 module.exports.server = server;
 
+// Also export io for potential use
+module.exports.io = io;
+
 // Start server locally if not in Vercel environment
 if (!process.env.NOW_REGION) {
     console.log('[Server] Starting server locally on port', PORT);

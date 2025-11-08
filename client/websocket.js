@@ -30,11 +30,10 @@ export class WebSocketClient {
                 timeout: 10000,
                 // Add Vercel-specific options
                 forceNew: true,
-                autoConnect: true,
+                autoConnect: false, // Don't auto-connect, we'll connect manually
                 // Add additional options for better Vercel compatibility
                 rememberUpgrade: true,
                 upgradeTimeout: 10000,
-                // Add multiplexing options
                 multiplex: false
             };
         } else {
@@ -51,7 +50,7 @@ export class WebSocketClient {
                 randomizationFactor: 0.5,
                 timeout: 10000,
                 forceNew: true,
-                autoConnect: true,
+                autoConnect: false, // Don't auto-connect, we'll connect manually
                 rememberUpgrade: true,
                 upgradeTimeout: 10000,
                 multiplex: false
@@ -166,11 +165,9 @@ export class WebSocketClient {
                 resolve(this.socket.id);
             }
             
-            // Manually attempt connection if not already connecting
-            if (!this.socket.connected && !this.socket.connecting) {
-                console.log('[WebSocketClient] Manually initiating connection');
-                this.socket.connect();
-            }
+            // Manually attempt connection
+            console.log('[WebSocketClient] Manually initiating connection');
+            this.socket.connect();
         });
     }
 
