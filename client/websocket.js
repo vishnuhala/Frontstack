@@ -20,7 +20,10 @@ export class WebSocketClient {
                 reconnectionDelayMax: 5000,
                 randomizationFactor: 0.5,
                 path: '/socket.io',
-                timeout: 10000
+                timeout: 10000,
+                // Add Vercel-specific options
+                forceNew: true,
+                secure: true
             };
         } else {
             socketUrl = url;
@@ -33,7 +36,8 @@ export class WebSocketClient {
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
                 randomizationFactor: 0.5,
-                timeout: 10000
+                timeout: 10000,
+                forceNew: true
             };
         }
         
@@ -59,7 +63,7 @@ export class WebSocketClient {
     connect() {
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
-                reject(new Error('Connection timeout'));
+                reject(new Error('Connection timeout - please check network and try again'));
             }, 15000); // 15 second timeout
             
             this.socket.on('connect', () => {

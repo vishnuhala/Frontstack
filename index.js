@@ -18,14 +18,15 @@ app.use((req, res, next) => {
 const io = socketIo(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "OPTIONS"],
     credentials: true
   },
   allowEIO3: true, // Allow Engine.IO v3 clients
   transports: ["websocket", "polling"], // Try WebSocket first, then polling
   upgrade: true,
   cookie: false, // Disable cookie for Vercel compatibility
-  path: "/socket.io" // Explicitly set the path
+  path: "/socket.io", // Explicitly set the path
+  serveClient: false // Don't serve the client files from the server
 });
 
 // Serve static files from the client directory
