@@ -1,4 +1,13 @@
 // Main application entry point
+console.log('[Main] Script loading started');
+
+// Add a check for require function
+if (typeof require !== 'undefined') {
+    console.log('[Main] Require function is defined - this should not happen in browser');
+} else {
+    console.log('[Main] Require function is not defined - this is expected in browser');
+}
+
 import { CanvasManager } from './canvas.js';
 import { WebSocketClient } from './websocket.js';
 
@@ -200,380 +209,241 @@ function setupEventListeners() {
         }
     });
     
+    // Create room button
     createRoomBtn.addEventListener('click', () => {
         console.log('[Main] Create room button clicked');
-        const roomName = prompt('Enter new room name:');
-        if (roomName && roomName.trim()) {
-            // Leave current room
-            wsClient.leaveRoom(currentRoom);
-            
-            // Join new room
-            currentRoom = roomName.trim();
-            roomInput.value = currentRoom;
-            wsClient.joinRoom(currentRoom);
-            
-            statusElement.textContent = `Created and joined room: ${roomName}`;
-        }
+        const roomName = 'room-' + Math.random().toString(36).substr(2, 9);
+        roomInput.value = roomName;
+        
+        // Leave current room
+        wsClient.leaveRoom(currentRoom);
+        
+        // Join new room
+        currentRoom = roomName;
+        wsClient.joinRoom(currentRoom);
+        
+        statusElement.textContent = `Created and joined room: ${roomName}`;
     });
     
-    // Save/Load functionality
+    // Save button
     saveBtn.addEventListener('click', () => {
         console.log('[Main] Save button clicked');
-        saveDrawing();
+        const data = canvasManager.export();
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'drawing.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     });
     
+    // Load button
     loadBtn.addEventListener('click', () => {
         console.log('[Main] Load button clicked');
         fileInput.click();
     });
     
+    // File input change
     fileInput.addEventListener('change', (e) => {
-        console.log('[Main] File selected for loading');
-        loadDrawing(e.target.files[0]);
+        console.log('[Main] File input changed');
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    canvasManager.import(data);
+                    console.log('[Main] Drawing loaded successfully');
+                } catch (error) {
+                    console.error('[Main] Failed to load drawing:', error);
+                    statusElement.textContent = 'Failed to load drawing: Invalid file format';
+                }
+            };
+            reader.readAsText(file);
+        }
     });
     
-    // Mouse move event for cursor tracking
-    canvasManager.canvas.addEventListener('mousemove', (e) => {
-        const rect = canvasManager.canvas.getBoundingClientRect();
-        cursorPosition.x = e.clientX - rect.left;
-        cursorPosition.y = e.clientY - rect.top;
-        sendCursorPosition();
-    });
-    
-    console.log('[Main] UI event listeners set up');
+    console.log('[Main] UI event listeners setup complete');
 }
 
-// Setup WebSocket event handlers
-function setupWebSocketHandlers() {
-    console.log('[Main] Setting up WebSocket event handlers');
-    // Connection confirmed
-    wsClient.on('connection-confirmed', (data) => {
-        console.log('[Main] Connection confirmed:', data);
-        statusElement.textContent = 'Connected to server! Draw something...';
-    });
-    
-    // User joined
-    wsClient.on('user-joined', (data) => {
-        console.log('[Main] User joined:', data);
-        onlineUsers[data.userId] = {
-            id: data.userId,
-            color: data.color,
-            name: data.name || `User ${Object.keys(onlineUsers).length + 1}`
-        };
-        updateUserList();
-        statusElement.textContent = `${data.name || 'A user'} joined the session`;
-    });
-    
-    // User left
-    wsClient.on('user-left', (data) => {
-        console.log('[Main] User left:', data);
-        delete onlineUsers[data.userId];
-        updateUserList();
-        statusElement.textContent = 'A user left the session';
-    });
-    
-    // Receive drawing data from other users
-    wsClient.on('draw-path', (pathData) => {
-        console.log('[Main] Received draw-path:', pathData);
-        canvasManager.drawRemotePath(pathData);
-    });
-    
-    // Receive undo action from other users
-    wsClient.on('path-undone', (data) => {
-        console.log('[Main] Received path-undone:', data);
-        // Find and remove the path
-        const index = canvasManager.paths.findIndex(p => p.id === data.pathId);
-        if (index !== -1) {
-            const undonePath = canvasManager.paths[index];
-            canvasManager.paths.splice(index, 1);
-            
-            // Update undo/redo stacks
-            const undoIndex = canvasManager.undoStack.findIndex(p => p.id === data.pathId);
-            if (undoIndex !== -1) {
-                canvasManager.undoStack.splice(undoIndex, 1);
-            }
-            
-            canvasManager.redoStack.push(undonePath);
-            canvasManager.redraw();
-            updateUndoRedoButtons();
-        }
-    });
-    
-    // Receive redo action from other users
-    wsClient.on('path-redone', (pathData) => {
-        console.log('[Main] Received path-redone:', pathData);
-        canvasManager.drawRemotePath(pathData);
-        // Move path from redo to undo stack
-        const redoIndex = canvasManager.redoStack.findIndex(p => p.id === pathData.id);
-        if (redoIndex !== -1) {
-            canvasManager.redoStack.splice(redoIndex, 1);
-        }
-        canvasManager.undoStack.push(pathData);
-        updateUndoRedoButtons();
-    });
-    
-    // Receive clear canvas command
-    wsClient.on('canvas-cleared', () => {
-        console.log('[Main] Received canvas-cleared');
-        canvasManager.clear();
-        statusElement.textContent = 'Canvas cleared by another user';
-    });
-    
-    // Receive initial canvas state
-    wsClient.on('initial-state', (data) => {
-        console.log('[Main] Received initial-state:', data);
-        if (data.paths) {
-            canvasManager.setPaths(data.paths);
-        }
-        if (data.users) {
-            onlineUsers = data.users;
-            updateUserList();
-        }
-    });
-    
-    // Receive cursor position updates
-    wsClient.on('cursor-move', (data) => {
-        console.log('[Main] Received cursor-move:', data);
-        updateRemoteCursor(data);
-    });
-    
-    // Latency test response
-    wsClient.on('latency-response', (data) => {
-        console.log('[Main] Received latency-response:', data);
-        const now = Date.now();
-        const latency = now - data.timestamp;
-        latencyTests.push(latency);
-        
-        // Keep only the last 10 latency tests
-        if (latencyTests.length > 10) {
-            latencyTests.shift();
-        }
-    });
-    
-    // Connection error handling
-    wsClient.on('connect_error', (error) => {
-        console.error('[Main] WebSocket connection error:', error);
-        statusElement.textContent = `Connection error: ${error.message}. Retrying...`;
-    });
-    
-    // Disconnection handling
-    wsClient.on('disconnect', (reason) => {
-        console.log('[Main] WebSocket disconnected:', reason);
-        statusElement.textContent = `Disconnected: ${reason}. Attempting to reconnect...`;
-    });
-    
-    console.log('[Main] WebSocket event handlers set up');
-}
-
-// Set active tool in UI
+// Set active tool
 function setActiveTool(tool) {
     console.log('[Main] Setting active tool:', tool);
     // Remove active class from all tools
-    brushToolBtn.classList.remove('active');
-    eraserToolBtn.classList.remove('active');
-    rectangleToolBtn.classList.remove('active');
-    circleToolBtn.classList.remove('active');
-    lineToolBtn.classList.remove('active');
+    document.querySelectorAll('.tool').forEach(btn => btn.classList.remove('active'));
     
     // Add active class to selected tool
-    if (tool === 'brush') {
-        brushToolBtn.classList.add('active');
-    } else if (tool === 'eraser') {
-        eraserToolBtn.classList.add('active');
-    } else if (tool === 'rectangle') {
-        rectangleToolBtn.classList.add('active');
-    } else if (tool === 'circle') {
-        circleToolBtn.classList.add('active');
-    } else if (tool === 'line') {
-        lineToolBtn.classList.add('active');
+    const toolBtn = document.getElementById(`${tool}-tool`);
+    if (toolBtn) {
+        toolBtn.classList.add('active');
     }
 }
 
-// Update user list display
-function updateUserList() {
-    console.log('[Main] Updating user list');
-    usersList.innerHTML = '';
-    
-    Object.values(onlineUsers).forEach(user => {
-        const li = document.createElement('li');
-        li.className = 'user-badge';
-        li.style.backgroundColor = user.color;
-        li.textContent = user.name || `User ${user.id.substring(0, 4)}`;
-        usersList.appendChild(li);
-    });
-}
-
-// Update remote cursor position
-function updateRemoteCursor(data) {
-    console.log('[Main] Updating remote cursor:', data);
-    let cursor = document.getElementById(`cursor-${data.userId}`);
-    
-    if (!cursor) {
-        // Create new cursor element
-        cursor = document.createElement('div');
-        cursor.id = `cursor-${data.userId}`;
-        cursor.className = 'user-cursor';
-        cursor.style.backgroundColor = data.color;
-        
-        const label = document.createElement('div');
-        label.className = 'user-cursor-label';
-        label.textContent = data.name || `User ${data.userId.substring(0, 4)}`;
-        cursor.appendChild(label);
-        
-        document.getElementById('cursors-container').appendChild(cursor);
-    }
-    
-    // Update cursor position
-    cursor.style.left = `${data.x}px`;
-    cursor.style.top = `${data.y}px`;
-}
-
-// Send cursor position to other users
-function sendCursorPosition() {
-    if (wsClient && wsClient.socket && wsClient.socket.connected) {
-        wsClient.emit('cursor-move', {
-            x: cursorPosition.x,
-            y: cursorPosition.y,
-            color: currentUser.color,
-            userId: currentUser.id
-        });
-    }
-}
-
-// Update undo/redo button states
+// Update undo/redo buttons
 function updateUndoRedoButtons() {
     console.log('[Main] Updating undo/redo buttons');
     undoBtn.disabled = canvasManager.undoStack.length === 0;
     redoBtn.disabled = canvasManager.redoStack.length === 0;
 }
 
-// Generate a random color for user identification
-function getRandomColor() {
-    const colors = [
-        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
+// Setup WebSocket event handlers
+function setupWebSocketHandlers() {
+    console.log('[Main] Setting up WebSocket event handlers');
+    
+    wsClient.on('connection-confirmed', (data) => {
+        console.log('[Main] Connection confirmed from server:', data);
+        statusElement.textContent = `Connected with ID: ${data.userId.substring(0, 8)}...`;
+    });
+    
+    wsClient.on('initial-state', (data) => {
+        console.log('[Main] Received initial state from server:', data);
+        if (data.paths) {
+            canvasManager.import({ paths: data.paths });
+        }
+        if (data.users) {
+            updateUsersList(data.users);
+        }
+    });
+    
+    wsClient.on('draw-path', (pathData) => {
+        console.log('[Main] Received draw-path from server:', pathData);
+        canvasManager.drawPathFromServer(pathData);
+    });
+    
+    wsClient.on('path-undone', (data) => {
+        console.log('[Main] Received path-undone from server:', data);
+        canvasManager.removePath(data.pathId);
+    });
+    
+    wsClient.on('path-redone', (data) => {
+        console.log('[Main] Received path-redone from server:', data);
+        // For simplicity, we'll just notify the user
+        // In a full implementation, we would need to store the path data for redo
+    });
+    
+    wsClient.on('canvas-cleared', () => {
+        console.log('[Main] Received canvas-cleared from server');
+        canvasManager.clear();
+    });
+    
+    wsClient.on('user-joined', (data) => {
+        console.log('[Main] User joined:', data);
+        onlineUsers[data.userId] = { color: data.color, name: data.name };
+        updateUsersList(onlineUsers);
+    });
+    
+    wsClient.on('user-left', (data) => {
+        console.log('[Main] User left:', data);
+        delete onlineUsers[data.userId];
+        updateUsersList(onlineUsers);
+    });
+    
+    wsClient.on('cursor-move', (data) => {
+        console.log('[Main] Cursor move:', data);
+        // Update cursor position for the user
+        updateCursorPosition(data.userId, data.x, data.y, onlineUsers[data.userId]?.color);
+    });
+    
+    console.log('[Main] WebSocket event handlers setup complete');
 }
 
-// Handle drawing completion
-canvasManager.stopDrawing = function() {
-    console.log('[Main] Drawing stopped');
-    const originalResult = CanvasManager.prototype.stopDrawing.call(this);
-    
-    // Send path data to other users
-    if (originalResult) {
-        wsClient.emit('draw-path', originalResult);
+// Update users list
+function updateUsersList(users) {
+    console.log('[Main] Updating users list:', users);
+    usersList.innerHTML = '';
+    Object.entries(users).forEach(([userId, userData]) => {
+        const li = document.createElement('li');
+        li.textContent = userId === currentUser.id ? `${userId.substring(0, 8)}... (You)` : userId.substring(0, 8) + '...';
+        li.style.color = userData.color;
+        usersList.appendChild(li);
+    });
+}
+
+// Update cursor position
+function updateCursorPosition(userId, x, y, color) {
+    console.log('[Main] Updating cursor position:', userId, x, y, color);
+    let cursor = document.getElementById(`cursor-${userId}`);
+    if (!cursor) {
+        cursor = document.createElement('div');
+        cursor.id = `cursor-${userId}`;
+        cursor.className = 'cursor';
+        cursor.style.position = 'absolute';
+        cursor.style.width = '10px';
+        cursor.style.height = '10px';
+        cursor.style.borderRadius = '50%';
+        cursor.style.pointerEvents = 'none';
+        cursor.style.zIndex = '1000';
+        document.getElementById('cursors-container').appendChild(cursor);
     }
     
-    return originalResult;
-};
+    cursor.style.left = `${x - 5}px`;
+    cursor.style.top = `${y - 5}px`;
+    cursor.style.backgroundColor = color || '#000000';
+}
 
 // Start performance monitoring
 function startPerformanceMonitoring() {
     console.log('[Main] Starting performance monitoring');
-    // FPS counter
     setInterval(() => {
-        const now = Date.now();
-        const elapsed = (now - lastFpsUpdate) / 1000;
-        const fps = Math.round(fpsCounter / elapsed);
-        
-        // Calculate average latency
-        let avgLatency = 0;
-        if (latencyTests.length > 0) {
-            const sum = latencyTests.reduce((a, b) => a + b, 0);
-            avgLatency = Math.round(sum / latencyTests.length);
-        }
-        
-        // Update performance metrics display
-        performanceMetrics.textContent = `FPS: ${fps} | Latency: ${avgLatency}ms`;
-        
-        // Reset counters
-        fpsCounter = 0;
-        lastFpsUpdate = now;
-    }, 1000);
-    
-    // Increment FPS counter on each frame
-    const updateFps = () => {
         fpsCounter++;
-        requestAnimationFrame(updateFps);
-    };
-    updateFps();
-    
-    // Periodically test latency
-    setInterval(() => {
-        if (wsClient && wsClient.socket && wsClient.socket.connected) {
-            wsClient.emit('latency-test', { timestamp: Date.now() });
-        }
-    }, 5000);
-}
-
-// Save drawing to file
-function saveDrawing() {
-    console.log('[Main] Saving drawing');
-    try {
-        const drawingData = {
-            paths: canvasManager.paths,
-            createdAt: new Date().toISOString(),
-            room: currentRoom
-        };
-        
-        const dataStr = JSON.stringify(drawingData, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = `drawing-${currentRoom}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-        
-        statusElement.textContent = 'Drawing saved successfully!';
-    } catch (error) {
-        console.error('[Main] Error saving drawing:', error);
-        statusElement.textContent = 'Error saving drawing: ' + error.message;
-    }
-}
-
-// Load drawing from file
-function loadDrawing(file) {
-    console.log('[Main] Loading drawing');
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const drawingData = JSON.parse(e.target.result);
+        const now = Date.now();
+        if (now - lastFpsUpdate >= 1000) {
+            const fps = Math.round(fpsCounter * 1000 / (now - lastFpsUpdate));
+            fpsCounter = 0;
+            lastFpsUpdate = now;
             
-            if (drawingData.paths) {
-                // Clear current canvas
-                canvasManager.clear();
-                wsClient.emit('clear-canvas');
-                
-                // Load paths
-                drawingData.paths.forEach(path => {
-                    canvasManager.drawPath(path);
-                    canvasManager.paths.push(path);
-                });
-                
-                // Update undo stack
-                canvasManager.undoStack = [...drawingData.paths];
-                canvasManager.redoStack = [];
-                
-                statusElement.textContent = 'Drawing loaded successfully!';
-                updateUndoRedoButtons();
-            } else {
-                throw new Error('Invalid drawing file format');
+            // Update performance metrics
+            performanceMetrics.textContent = `FPS: ${fps}`;
+            
+            // Send latency test
+            if (wsClient) {
+                const startTime = Date.now();
+                wsClient.emit('latency-test', { startTime });
             }
-        } catch (error) {
-            console.error('[Main] Error loading drawing:', error);
-            statusElement.textContent = 'Error loading drawing: ' + error.message;
         }
-    };
+        
+        // Send cursor position
+        if (wsClient && cursorPosition.x !== 0 && cursorPosition.y !== 0) {
+            wsClient.emit('cursor-move', cursorPosition);
+        }
+    }, 16); // ~60 FPS
     
-    reader.onerror = function() {
-        statusElement.textContent = 'Error reading file';
-    };
+    // Track mouse movement for cursor position
+    document.getElementById('drawing-canvas').addEventListener('mousemove', (e) => {
+        const rect = e.target.getBoundingClientRect();
+        cursorPosition.x = e.clientX - rect.left;
+        cursorPosition.y = e.clientY - rect.top;
+    });
     
-    reader.readAsText(file);
+    console.log('[Main] Performance monitoring started');
 }
+
+// Handle latency response
+wsClient.on('latency-response', (data) => {
+    const latency = Date.now() - data.startTime;
+    latencyTests.push(latency);
+    
+    // Keep only the last 10 latency tests
+    if (latencyTests.length > 10) {
+        latencyTests.shift();
+    }
+    
+    // Calculate average latency
+    const avgLatency = Math.round(latencyTests.reduce((a, b) => a + b, 0) / latencyTests.length);
+    performanceMetrics.textContent += ` | Latency: ${avgLatency}ms`;
+});
+
+// Utility function to generate random color
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
+
+console.log('[Main] Script loading completed');
