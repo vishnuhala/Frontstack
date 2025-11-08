@@ -61,7 +61,8 @@ export class WebSocketClient {
         console.log('[WebSocketClient] Socket Options:', socketOptions);
         
         console.log('[WebSocketClient] Creating Socket.IO connection');
-        this.socket = io(socketUrl, socketOptions);
+        // Use the global io function from the CDN
+        this.socket = window.io(socketUrl, socketOptions);
         console.log('[WebSocketClient] Socket.IO instance created:', this.socket);
         this.listeners = {};
         
