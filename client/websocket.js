@@ -24,8 +24,10 @@ export class WebSocketClient {
                 // Add Vercel-specific options
                 forceNew: true,
                 secure: true,
-                // Remove port specification to let Socket.IO auto-detect
-                autoConnect: true
+                autoConnect: true,
+                // Add additional options for better Vercel compatibility
+                rememberUpgrade: true,
+                upgradeTimeout: 10000
             };
         } else {
             socketUrl = url;
@@ -40,7 +42,9 @@ export class WebSocketClient {
                 randomizationFactor: 0.5,
                 timeout: 10000,
                 forceNew: true,
-                autoConnect: true
+                autoConnect: true,
+                rememberUpgrade: true,
+                upgradeTimeout: 10000
             };
         }
         

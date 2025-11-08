@@ -23,6 +23,11 @@
       }
     },
     {
+      "src": "/health",
+      "dest": "/index.js",
+      "methods": ["GET"]
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.js"
     }

@@ -22,14 +22,20 @@ const io = socketIo(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST", "OPTIONS"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
   },
   allowEIO3: true, // Allow Engine.IO v3 clients
   transports: ["websocket", "polling"], // Try WebSocket first, then polling
   upgrade: true,
   cookie: false, // Disable cookie for Vercel compatibility
   path: "/socket.io", // Explicitly set the path
-  serveClient: false // Don't serve the client files from the server
+  serveClient: false, // Don't serve the client files from the server
+  // Add additional options for better Vercel compatibility
+  allowRequest: (req, callback) => {
+    // Allow all requests for better compatibility
+    callback(null, true);
+  }
 });
 
 // Serve static files from the client directory
